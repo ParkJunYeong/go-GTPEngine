@@ -1,7 +1,9 @@
 package go_GTPEngine
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -64,8 +66,8 @@ func (e *Engine) Run() {
 	e.running = true
 
 	for e.running {
-		var line string
-		fmt.Scanln(line)
+		reader := bufio.NewReader(os.Stdin)
+		line, _ := reader.ReadString('\n')
 
 		e.response = "=" + strconv.Itoa(e.cmd_idx) + " "
 
