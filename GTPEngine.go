@@ -43,9 +43,9 @@ type Engine struct {
 	cmd_idx  int
 	response string
 
-	Clear   func() error
+	Clear   func()
 	GenMove func(StoneType) (int, int)
-	Play    func(StoneType, int, int)
+	Play    func(StoneType, int, int) error
 }
 
 func InitEngine(protocol_ver, name, version string) *Engine {
@@ -67,7 +67,7 @@ func (e *Engine) Run() {
 		var line string
 		fmt.Scanln(line)
 
-		e.response = "=" + e.cmd_idx + " "
+		e.response = "=" + strconv.Itoa(e.cmd_idx) + " "
 
 		cmd := e.ParseCmd(line)
 		e.Process(cmd)
@@ -82,7 +82,7 @@ func (e *Engine) ParseCmd(line string) Cmd {
 		return Cmd{Type: CMD_QUIT}
 	}
 
-	tokens := strings.Split(line, ' ')
+	tokens := strings.Fields(line)
 
 	ret := Cmd{Type: CMD_UNKNOWN, Args: tokens[1:]}
 
@@ -114,11 +114,11 @@ func (e *Engine) Process(cmd Cmd) {
 		e.running = false
 
 	case CMD_PROTOCOL_VERSION:
-		e.response = append(e.response, e.protocol_ver)
+		e.response += e.protocol_ver
 	case CMD_NAME:
-		e.response = append(e.response, e.name)
+		e.response += e.name
 	case CMD_VERSION:
-		e.response = append(e.response, e.version)
+		e.response += e.version
 
 	case CMD_CLEAR_BOARD:
 		if e.Clear != nil {
@@ -127,7 +127,7 @@ func (e *Engine) Process(cmd Cmd) {
 
 	case CMD_PLAY:
 		if len(cmd.Args) <= 1 {
-			e.response = append('?', e.response[1:], "syntax error")
+			e.response = "?" + e.response[1:] + "syntax error"
 			break
 		}
 
@@ -136,13 +136,13 @@ func (e *Engine) Process(cmd Cmd) {
 			x, y := parseCoordinate(cmd.Args[1])
 
 			if !(stone > 0 && x >= -1 && y >= -1) {
-				e.response = append('?', e.response[1:], "invalid color or coordinate")
+				e.response = "?" + e.response[1:] + "invalid color or coordinate"
 			}
 
 			err := e.Play(stone, x, y)
 
 			if err != nil {
-				e.response = append('?', e.response[1:], "illegal move")
+				e.response = "?" + e.response[1:] + "illegal move"
 				break
 			}
 		}
@@ -154,12 +154,14 @@ func (e *Engine) Process(cmd Cmd) {
 			x, y := e.GenMove(stone)
 
 			if x == -1 && y == -1 {
-				e.response = append(e.response, "pass")
+				e.response += "pass"
 			} else if x == -2 && y == -2 {
-				e.response = append(e.response, "resign")
+				e.response += "resign"
 			} else {
-				e.response = append(e.response, x+'A')
-				e.response = append(e.response, 19-y)
+				pos_list := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+				e.response += pos_list[x:x]
+				e.response += strconv.Itoa(19 - y)
 			}
 		}
 	}
@@ -187,8 +189,10 @@ func parseCoordinate(arg string) (int, int) {
 		return -1, -1
 	}
 
-	x := strings.ToLower(arg)[0] - 'a'
-	y, _ := strconv.Atoi(arg[1])
+	pos_list := "abcdefghijklmnopqrstuvwxyz"
+
+	x := strings.Index(pos_list, strings.ToLower(arg)[:0])
+	y, _ := strconv.Atoi(arg[1:])
 
 	return x, 19 - y
 }
