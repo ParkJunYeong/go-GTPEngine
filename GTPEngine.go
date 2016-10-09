@@ -1,8 +1,9 @@
 package go_GTPEngine
 
 import (
-	"strings"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 type CommandType int
@@ -36,12 +37,15 @@ type Engine struct {
 	running bool
 
 	protocol_ver string
-	name string
-	version string
+	name         string
+	version      string
 
-	Clear func()
+	cmd_idx  int
+	response string
+
+	Clear   func() error
 	GenMove func(StoneType) (int, int)
-	Play func(StoneType, int, int)
+	Play    func(StoneType, int, int)
 }
 
 func InitEngine(protocol_ver, name, version string) *Engine {
@@ -63,14 +67,17 @@ func (e *Engine) Run() {
 		var line string
 		fmt.Scanln(line)
 
-		cmd := e.ParseCmd(line)
-		response := e.Process(cmd)
+		e.response = "=" + e.cmd_idx + " "
 
-		fmt.Println(response, "\n")
+		cmd := e.ParseCmd(line)
+		e.Process(cmd)
+
+		fmt.Print(e.response, "\n\n")
+		e.cmd_idx++
 	}
 }
 
-func (e* Engine) ParseCmd(line string) Cmd {
+func (e *Engine) ParseCmd(line string) Cmd {
 	if len(line) == 0 {
 		return Cmd{Type: CMD_QUIT}
 	}
@@ -101,39 +108,87 @@ func (e* Engine) ParseCmd(line string) Cmd {
 	return ret
 }
 
-func (e *Engine) Process(cmd Cmd) string {
+func (e *Engine) Process(cmd Cmd) {
 	switch cmd.Type {
 	case CMD_QUIT:
 		e.running = false
-		return ""
 
 	case CMD_PROTOCOL_VERSION:
-		return e.protocol_ver
+		e.response = append(e.response, e.protocol_ver)
 	case CMD_NAME:
-		return e.name
+		e.response = append(e.response, e.name)
 	case CMD_VERSION:
-		return e.version
+		e.response = append(e.response, e.version)
 
 	case CMD_CLEAR_BOARD:
 		if e.Clear != nil {
 			e.Clear()
 		}
 
-		return ""
-
 	case CMD_PLAY:
-		if e.Play != nil {
+		if len(cmd.Args) <= 1 {
+			e.response = append('?', e.response[1:], "syntax error")
+			break
 		}
 
-		return ""
+		if e.Play != nil {
+			stone := parseColor(cmd.Args[0])
+			x, y := parseCoordinate(cmd.Args[1])
+
+			if !(stone > 0 && x >= -1 && y >= -1) {
+				e.response = append('?', e.response[1:], "invalid color or coordinate")
+			}
+
+			err := e.Play(stone, x, y)
+
+			if err != nil {
+				e.response = append('?', e.response[1:], "illegal move")
+				break
+			}
+		}
 
 	case CMD_GENMOVE:
 		if e.GenMove != nil {
+			stone := parseColor(cmd.Args[0])
 
+			x, y := e.GenMove(stone)
+
+			if x == -1 && y == -1 {
+				e.response = append(e.response, "pass")
+			} else if x == -2 && y == -2 {
+				e.response = append(e.response, "resign")
+			} else {
+				e.response = append(e.response, x+'A')
+				e.response = append(e.response, 19-y)
+			}
 		}
-		return ""
+	}
+}
+
+func parseColor(arg string) StoneType {
+	switch strings.ToLower(arg) {
+	case "black":
+		fallthrough
+	case "b":
+		return BLACK
+
+	case "white":
+		fallthrough
+	case "w":
+		return WHITE
 
 	default:
-		return ""
+		return NONE
 	}
+}
+
+func parseCoordinate(arg string) (int, int) {
+	if strings.ToLower(arg) == "pass" {
+		return -1, -1
+	}
+
+	x := strings.ToLower(arg)[0] - 'a'
+	y, _ := strconv.Atoi(arg[1])
+
+	return x, 19 - y
 }
