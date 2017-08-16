@@ -160,7 +160,7 @@ func (e *Engine) Process(cmd Cmd) {
 			} else if x == -2 && y == -2 {
 				e.response += "resign"
 			} else {
-				pos_list := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+				pos_list := "ABCDEFGHIJKMNOPQRSTUVWXYZ"
 
 				e.response += pos_list[x:x]
 				e.response += strconv.Itoa(19 - y)
@@ -191,7 +191,7 @@ func parseCoordinate(arg string) (int, int) {
 		return -1, -1
 	}
 
-	pos_list := "abcdefghijklmnopqrstuvwxyz"
+	pos_list := "abcdefghijkmnopqrstuvwxyz"
 
 	x := strings.Index(pos_list, strings.ToLower(arg)[:0])
 	y, _ := strconv.Atoi(arg[1:])
