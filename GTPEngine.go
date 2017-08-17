@@ -2,6 +2,7 @@ package go_GTPEngine
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"strconv"
@@ -45,9 +46,10 @@ type Engine struct {
 	cmd_idx  int
 	response string
 
-	Clear   func()
-	GenMove func(StoneType) (int, int)
-	Play    func(StoneType, int, int) error
+	Clear     func()
+	ShowBoard func()
+	GenMove   func(StoneType) (int, int)
+	Play      func(StoneType, int, int) error
 }
 
 func InitEngine(protocol_ver, name, version string) *Engine {
@@ -162,9 +164,19 @@ func (e *Engine) Process(cmd Cmd) {
 			} else {
 				pos_list := "ABCDEFGHIJKMNOPQRSTUVWXYZ"
 
-				e.response += pos_list[x:x]
+				var buf bytes.Buffer
+
+				buf.WriteString(e.response)
+				buf.WriteByte(pos_list[x])
+
+				e.response = buf.String()
 				e.response += strconv.Itoa(19 - y)
 			}
+		}
+
+	case CMD_SHOWBOARD:
+		if e.ShowBoard != nil {
+			e.ShowBoard()
 		}
 	}
 }
